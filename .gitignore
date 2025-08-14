@@ -20,7 +20,8 @@ local.properties
 .crashlytics/
 
 # Keystores & Certificates
-*.jks
 *.keystore
 *.pem
 *.p12
+app/google-services.json
+*.jks
