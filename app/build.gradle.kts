@@ -1,5 +1,15 @@
 import java.util.Properties
 
+// ✅ Top-level function to read local.properties safely
+fun lp(key: String, fallback: String = ""): String {
+    val lpFile = rootProject.file("local.properties")
+    val localProps = Properties()
+    if (lpFile.exists()) {
+        lpFile.inputStream().use { localProps.load(it) }
+    }
+    return localProps.getProperty(key) ?: System.getenv(key) ?: fallback
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,16 +18,6 @@ plugins {
 
     alias(libs.plugins.hilt)
     alias(libs.plugins.googleServices)
-}
-
-// ✅ Define function at top-level (outside android block)
-fun getLocalProperty(key: String): String {
-    val properties = Properties()
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        properties.load(localPropertiesFile.inputStream())
-    }
-    return properties.getProperty(key) ?: ""
 }
 
 android {
@@ -33,14 +33,22 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // ✅ Securely inject API keys
-        buildConfigField("String", "OPENAI_API_KEY", "\"${getLocalProperty("OPENAI_API_KEY")}\"")
-        buildConfigField("String", "GEMINI_API_KEY", "\"${getLocalProperty("GEMINI_API_KEY")}\"")
+        // ✅ Inject API keys securely for debug build
+        buildConfigField("String", "OPENAI_API_KEY", "\"${lp("OPENAI_API_KEY")}\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"${lp("GEMINI_API_KEY")}\"")
     }
 
     buildTypes {
-        release {
+        debug {
+            // Debug uses keys from local.properties
             isMinifyEnabled = false
+        }
+        release {
+            // Release: never ship API keys in APK
+            buildConfigField("String", "OPENAI_API_KEY", "\"\"")
+            buildConfigField("String", "GEMINI_API_KEY", "\"\"")
+
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -65,22 +73,13 @@ android {
 
 dependencies {
     implementation(libs.accompanist.systemuicontroller)
-
-
     implementation(libs.logging.interceptor)
-
-    // Material3 icons
     implementation(libs.androidx.material.icons.extended)
-
-    // LazyVerticalGrid
     implementation(libs.androidx.foundation)
-
-    // Core & Lifecycle
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.viewmodel.compose)
 
-    // Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.ui)
@@ -88,28 +87,21 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    // Navigation
     implementation(libs.navigation.compose)
 
-    // Hilt
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // Coroutines
     implementation(libs.coroutines.android)
-
-    // Retrofit & Gson
     implementation(libs.retrofit)
     implementation(libs.gson.converter)
 
-    // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.play.services.auth)
 
-    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
